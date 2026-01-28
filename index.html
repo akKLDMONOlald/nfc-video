@@ -1,15 +1,17 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Video</title>
+
   <style>
     html, body {
       margin: 0;
       padding: 0;
+      width: 100%;
       height: 100%;
-      background: #000;
+      background: black;
       overflow: hidden;
     }
 
@@ -19,86 +21,92 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      pointer-events: none; /* 👈 IMPORTANTÍSIMO: el toque no afecta al video */
+
+      /* CLAVE: el video NO puede recibir ningún input */
+      pointer-events: none;
+      touch-action: none;
+      user-select: none;
     }
 
-    /* Capa invisible que recibe el toque */
-    #tapLayer{
+    /* Capa que recibe TODOS los toques */
+    #tap {
       position: fixed;
       inset: 0;
-      background: transparent;
       z-index: 10;
+      background: transparent;
     }
 
-    /* Mensaje */
     #hint {
       position: fixed;
       bottom: 16px;
       left: 50%;
       transform: translateX(-50%);
-      font: 14px system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      color: rgba(255,255,255,0.9);
-      background: rgba(0,0,0,0.45);
-      padding: 8px 12px;
+      padding: 8px 14px;
       border-radius: 999px;
-      user-select: none;
+      background: rgba(0,0,0,.5);
+      color: #fff;
+      font: 14px system-ui, -apple-system, Segoe UI, Roboto, Arial;
       z-index: 20;
     }
-    #hint.hidden { display: none; }
+
+    #hint.hide { display: none; }
   </style>
 </head>
+
 <body>
   <video id="vid"
-         src="Vid1.mp4"
-         autoplay
-         muted
-         loop
-         playsinline
-         preload="auto">
+    src="Vid1.mp4"
+    autoplay
+    muted
+    loop
+    playsinline
+    preload="auto">
   </video>
 
-  <div id="tapLayer" aria-label="tap"></div>
+  <div id="tap"></div>
   <div id="hint">Toca la pantalla para activar el sonido</div>
 
   <script>
     const vid = document.getElementById("vid");
-    const tapLayer = document.getElementById("tapLayer");
+    const tap = document.getElementById("tap");
     const hint = document.getElementById("hint");
 
-    // Asegura que no haya controles
     vid.controls = false;
 
-    async function forcePlay() {
-      try { await vid.play(); } catch (e) {}
+    // Fuerza reproducción siempre
+    function keepPlaying() {
+      if (vid.paused) {
+        vid.play().catch(() => {});
+      }
     }
 
-    // Arranque (autoplay muted)
-    document.addEventListener("DOMContentLoaded", forcePlay);
-    vid.addEventListener("canplay", forcePlay);
+    // Autoplay seguro
+    document.addEventListener("DOMContentLoaded", keepPlaying);
+    vid.addEventListener("canplay", keepPlaying);
 
-    // Tap: habilitar audio + forzar que siga reproduciendo
-    async function enableAudio(e) {
+    // ANDROID FIX: si el sistema intenta pausarlo, lo reanudamos
+    vid.addEventListener("pause", () => {
+      setTimeout(keepPlaying, 0);
+    });
+
+    // Tap SOLO para audio (no toca el video)
+    function enableAudio(e) {
       e.preventDefault();
+      e.stopPropagation();
 
       vid.muted = false;
       vid.volume = 1.0;
 
-      await forcePlay(); // 👈 fuerza que el video NO se pause
-      hint.classList.add("hidden");
+      keepPlaying();
+      hint.classList.add("hide");
 
-      // opcional: si quieres que después del primer toque ya no “capture” taps
-      tapLayer.style.display = "none";
+      // quitamos la capa para que no vuelva a interceptar
+      tap.removeEventListener("touchstart", enableAudio);
+      tap.removeEventListener("pointerdown", enableAudio);
     }
 
-    // Para móviles: pointerdown + touchstart
-    tapLayer.addEventListener("pointerdown", enableAudio, { passive: false });
-    tapLayer.addEventListener("touchstart", enableAudio, { passive: false });
-
-    // Si por alguna razón se pausa, lo reanudamos
-    vid.addEventListener("pause", () => {
-      // Si se pausó por interacción, lo reanudamos
-      forcePlay();
-    });
+    tap.addEventListener("touchstart", enableAudio, { passive: false });
+    tap.addEventListener("pointerdown", enableAudio, { passive: false });
   </script>
 </body>
 </html>
