@@ -1,17 +1,15 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Video</title>
-
   <style>
     html, body {
       margin: 0;
       padding: 0;
-      width: 100%;
       height: 100%;
-      background: black;
+      background: #000;
       overflow: hidden;
     }
 
@@ -21,93 +19,86 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-
-      /* CLAVE: el video NO puede recibir ningún input */
-      pointer-events: none;
-      touch-action: none;
-      user-select: none;
+      pointer-events: none; /* 👈 IMPORTANTÍSIMO: el toque no afecta al video */
     }
 
-    /* Capa que recibe TODOS los toques */
-    #tap {
+    /* Capa invisible que recibe el toque */
+    #tapLayer{
       position: fixed;
       inset: 0;
-      z-index: 10;
       background: transparent;
+      z-index: 10;
     }
 
+    /* Mensaje */
     #hint {
       position: fixed;
       bottom: 16px;
       left: 50%;
       transform: translateX(-50%);
-      padding: 8px 14px;
-      border-radius: 999px;
-      background: rgba(0,0,0,.5);
-      color: #fff;
       font: 14px system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color: rgba(255,255,255,0.9);
+      background: rgba(0,0,0,0.45);
+      padding: 8px 12px;
+      border-radius: 999px;
+      user-select: none;
       z-index: 20;
     }
-
-    #hint.hide { display: none; }
+    #hint.hidden { display: none; }
   </style>
 </head>
-
 <body>
   <video id="vid"
-    src="Vid1.mp4"
-    autoplay
-    muted
-    loop
-    playsinline
-    preload="auto">
+         src="Vid1.mp4"
+         autoplay
+         muted
+         loop
+         playsinline
+         preload="auto">
   </video>
 
-  <div id="tap"></div>
+  <div id="tapLayer" aria-label="tap"></div>
   <div id="hint">Toca la pantalla para activar el sonido</div>
 
   <script>
     const vid = document.getElementById("vid");
-    const tap = document.getElementById("tap");
+    const tapLayer = document.getElementById("tapLayer");
     const hint = document.getElementById("hint");
 
+    // Asegura que no haya controles
     vid.controls = false;
 
-    // Fuerza reproducción siempre
-    function keepPlaying() {
-      if (vid.paused) {
-        vid.play().catch(() => {});
-      }
+    async function forcePlay() {
+      try { await vid.play(); } catch (e) {}
     }
 
-    // Autoplay seguro
-    document.addEventListener("DOMContentLoaded", keepPlaying);
-    vid.addEventListener("canplay", keepPlaying);
+    // Arranque (autoplay muted)
+    document.addEventListener("DOMContentLoaded", forcePlay);
+    vid.addEventListener("canplay", forcePlay);
 
-    // ANDROID FIX: si el sistema intenta pausarlo, lo reanudamos
-    vid.addEventListener("pause", () => {
-      setTimeout(keepPlaying, 0);
-    });
-
-    // Tap SOLO para audio (no toca el video)
-    function enableAudio(e) {
+    // Tap: habilitar audio + forzar que siga reproduciendo
+    async function enableAudio(e) {
       e.preventDefault();
-      e.stopPropagation();
 
       vid.muted = false;
       vid.volume = 1.0;
 
-      keepPlaying();
-      hint.classList.add("hide");
+      await forcePlay(); // 👈 fuerza que el video NO se pause
+      hint.classList.add("hidden");
 
-      // quitamos la capa para que no vuelva a interceptar
-      tap.removeEventListener("touchstart", enableAudio);
-      tap.removeEventListener("pointerdown", enableAudio);
+      // opcional: si quieres que después del primer toque ya no “capture” taps
+      tapLayer.style.display = "none";
     }
 
-    tap.addEventListener("touchstart", enableAudio, { passive: false });
-    tap.addEventListener("pointerdown", enableAudio, { passive: false });
+    // Para móviles: pointerdown + touchstart
+    tapLayer.addEventListener("pointerdown", enableAudio, { passive: false });
+    tapLayer.addEventListener("touchstart", enableAudio, { passive: false });
+
+    // Si por alguna razón se pausa, lo reanudamos
+    vid.addEventListener("pause", () => {
+      // Si se pausó por interacción, lo reanudamos
+      forcePlay();
+    });
   </script>
 </body>
 </html>
-
