@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Video</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+    }
+    video {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover; /* llena la pantalla */
+    }
+    /* Mensaje sutil (opcional) para activar audio */
+    .hint {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      font: 14px system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color: rgba(255,255,255,0.85);
+      background: rgba(0,0,0,0.45);
+      padding: 8px 12px;
+      border-radius: 999px;
+      user-select: none;
+      pointer-events: none;
+    }
+    .hint.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <video id="vid"
+         src="Vids/Vid1.mp4"
+         autoplay
+         muted
+         loop
+         playsinline
+         preload="auto"
+         controlslist="nodownload noplaybackrate noremoteplayback"
+  ></video>
+
+  <div id="hint" class="hint">Toca la pantalla para activar el sonido</div>
+
+  <script>
+    const vid = document.getElementById("vid");
+    const hint = document.getElementById("hint");
+
+    // Asegura que no aparezcan controles
+    vid.controls = false;
+
+    async function start() {
+      try { await vid.play(); } catch (e) {}
+    }
+
+    // Intenta autoplay (muted) al cargar
+    document.addEventListener("DOMContentLoaded", start);
+
+    // En algunos móviles hace falta reintentar cuando ya está lista
+    vid.addEventListener("canplay", start);
+
+    // Primer toque = activar audio (si el navegador lo permite)
+    function enableAudio() {
+      vid.muted = false;
+      vid.volume = 1.0; // máximo permitido por el navegador (NO sube volumen del sistema)
+      vid.play().catch(() => {});
+      hint.classList.add("hidden");
+      window.removeEventListener("pointerdown", enableAudio);
+      window.removeEventListener("touchstart", enableAudio);
+    }
+
+    window.addEventListener("pointerdown", enableAudio, { once: true });
+    window.addEventListener("touchstart", enableAudio, { once: true });
+  </script>
+</body>
+</html>
